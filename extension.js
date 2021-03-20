@@ -36,7 +36,7 @@ function arm() {
                 c.on("data", 
                     (data) => {
                         c.input_buffer = (c.input_buffer || "") + data;
-                        [conf_name, program, pid, r] = c.input_buffer.split("\r\n")
+                        let [conf_name, program, pid, r] = c.input_buffer.split("\r\n")
                         if (r != null) {
                             if (r != "" || !isFinite(pid)) {
                                 vscode.window.showErrorMessage(`Invalid request: ${c.input_buffer}`);
@@ -76,7 +76,7 @@ function arm() {
             server = null;
         });
         
-        [host, port] = listento.split(" ");
+        let [host, port] = listento.split(" ");
         try {
             if (port)
                 server.listen(Number(port), host, () => {
