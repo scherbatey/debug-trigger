@@ -32,23 +32,39 @@ function arm() {
                 // "connection" listener.
                 console.log("client connected");
                 c.setEncoding("utf8");
+                
                 c.on("data", 
                     (data) => {
                         c.input_buffer = (c.input_buffer || "") + data;
-                        [_, _, _, r] = c.input_buffer.split("\r\n")
-                        if (r != null)
-                            handleRequest(c);
+                        [conf_name, program, pid, r] = c.input_buffer.split("\r\n")
+                        if (r != null) {
+                            if (r != "" || !isFinite(pid)) {
+                                vscode.window.showErrorMessage(`Invalid request: ${c.input_buffer}`);
+                                c.write("\x01");
+                                c.input_buffer = null;
+                                c.end();
+                            } else {
+                                console.log(`Request:${c.input_buffer}`);
+                                c.input_buffer = null;
+                                handleRequest(c, conf_name, program, pid);
+                            }
+                        }
                     }
                 );
+                
                 c.on("end", () => {
-                    handleRequest(c);
+                    if (c.input_buffer) {
+                        vscode.window.showErrorMessage(`Incomplete request: ${c.input_buffer}`);
+                        c.write("\x02");
+                        c.input_buffer = null;
+                    }
                 });
                 
                 const timeout = vscode.workspace.getConfiguration("debug-trigger").timeout;
                 c.setTimeout(timeout);
                 c.on('timeout', () => {
                     vscode.window.showWarningMessage(`Request timeout!`);
-                    c.write("\x02");
+                    c.write("\x03");
                     c.end();
                 });
             }
@@ -92,37 +108,37 @@ function disarm() {
     }
 }
 
-function handleRequest(c) {
-    console.log(`Request:${c.input_buffer}`);
-
-    [name, path, pid] = c.input_buffer.split("\r\n");
-    if (!isFinite(pid))
-    {
-        vscode.window.showWarningMessage(`Invalid request: ${c.input_buffer}!`);
-        c.write("\x00");
-        c.end();
-        return;
-    }
-
-    vscode.window.showInformationMessage(`Attaching process ${pid}...`);
-    
+function handleRequest(c, conf_name, program, pid) {
+    vscode.window.showInformationMessage(`Attaching process ${pid}...`);    
     const configurations = vscode.workspace.getConfiguration("debug-trigger").configurations;
     
-    var config = configurations[name] || name;
+    var config = configurations[conf_name] || conf_name;
     if (typeof(config) == "object") {
         config = {...config};
-        if (path)
-            config.program = path;
+        if (program)
+            config.program = program;
         config.processId = pid;
     }
 
     vscode.debug.startDebugging(undefined, config).then(ok => {   
-        if (ok)
-            vscode.window.showInformationMessage(`Debugging process ${pid} started!`);
-        else {
+        if (ok) {
+            vscode.window.showInformationMessage(`Debugging of process ${pid} started!`);
+            setTimeout(
+                () => {
+                    c.write("\x00"); // Success!
+                    c.end();
+                }, 
+                5000
+            );
+            
+        } else {
             vscode.window.showWarningMessage(`Failed to attach process ${pid}!`);
-            c.write("\x01");
+            c.write("\x04");
+            c.end(); 
         }
-        c.end();
-    }).catch(e => vscode.window.showWarningMessage(e));
+    }).catch(e => {
+        vscode.window.showWarningMessage(`Error: ${e}`);
+        c.write("\x05");
+        c.end()
+    });
 }
