@@ -32,7 +32,32 @@
         "debug-trigger.configurations": {
           "description": "Application -> debug configuration mapping. The configuration can be specified explicitly or as a string referring to the configuration from launch.json",
           "type": "object",
-          "scope": "window"
+          "scope": "window",
+          "default": {
+            "cppdbg": {
+              "name": "(gdb) Attach",
+              "type": "cppdbg",
+              "request": "attach",
+              "stopAtEntry": true,
+              "MIMode": "gdb",
+              "setupCommands": [
+                  {
+                      "description": "Enable pretty-printing for gdb",
+                      "text": "-enable-pretty-printing",
+                      "ignoreFailures": true
+                  }
+              ]
+            },
+            "python": {
+              "name": "Python: Attach",
+              "type": "python",
+              "request": "attach",
+              "connect": {
+                "host": "localhost",
+                "port": 5678
+              }
+            }
+          }
         }
       }
 
