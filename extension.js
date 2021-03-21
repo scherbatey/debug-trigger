@@ -1,6 +1,8 @@
 const vscode = require("vscode");
 const net = require("net");
 
+let disposables = [];
+
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -11,9 +13,21 @@ function activate(context) {
     context.subscriptions.push(armCommand);
     let disarmCommand = vscode.commands.registerCommand("debug-trigger.disarm", disarm);
     context.subscriptions.push(disarmCommand);
+
+    vscode.debug.onDidStartDebugSession(session => {
+        debug_sessions[Number(session.configuration.processId)] = session;
+    }, this, disposables);
+    
+    vscode.debug.onDidTerminateDebugSession(session => {
+        delete debug_sessions[Number(session.configuration.processId)];
+    }, this, disposables);
 }
 
-function deactivate() {}
+function deactivate() {
+    disposables.forEach(d => {
+        d.dispose();
+    });
+}
 
 module.exports = {
 	activate,
@@ -21,6 +35,7 @@ module.exports = {
 }
 
 let server = null;
+let debug_sessions = {};
 
 function arm() {
     if (!server) {
@@ -46,7 +61,7 @@ function arm() {
                             } else {
                                 console.log(`Request:${c.input_buffer}`);
                                 c.input_buffer = null;
-                                handleRequest(c, conf_name, program, pid);
+                                handleRequest(c, conf_name, program, Number(pid));
                             }
                         }
                     }
@@ -70,7 +85,7 @@ function arm() {
             }
         );
 
-        server.on('error', (e) => {
+        server.on('error', e => {
             vscode.window.showErrorMessage(`Error running server! Error: ${e}`);
             server.close();
             server = null;
@@ -109,6 +124,12 @@ function disarm() {
 }
 
 function handleRequest(c, conf_name, program, pid) {
+    if (debug_sessions[pid]) {
+        c.write("\x00");
+        c.end();
+        return;
+    }
+
     vscode.window.showInformationMessage(`Attaching process ${pid}...`);    
     const configurations = vscode.workspace.getConfiguration("debug-trigger").configurations;
     
@@ -123,19 +144,13 @@ function handleRequest(c, conf_name, program, pid) {
     vscode.debug.startDebugging(undefined, config).then(ok => {   
         if (ok) {
             vscode.window.showInformationMessage(`Debugging of process ${pid} started!`);
-            setTimeout(
-                () => {
-                    c.write("\x00"); // Success!
-                    c.end();
-                }, 
-                5000
-            );
-            
+            debug_sessions[pid] = pid;
+            c.write("\x00"); // Success!
         } else {
             vscode.window.showWarningMessage(`Failed to attach process ${pid}!`);
             c.write("\x04");
-            c.end(); 
         }
+        c.end(); 
     }).catch(e => {
         vscode.window.showWarningMessage(`Error: ${e}`);
         c.write("\x05");
