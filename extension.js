@@ -3,6 +3,11 @@ const net = require("net");
 
 let disposables = [];
 
+const RESP_OK = new Uint8Array([0]);
+const RESP_INVALID_REQUEST = new Uint8Array([1]);
+const RESP_INCOMPLETE_REQUEST = new Uint8Array([2]);
+const RESP_ATTACH_FAILURE = new Uint8Array([3]);
+
 /**
  * @param {vscode.ExtensionContext} context
  */
@@ -15,11 +20,18 @@ function activate(context) {
     context.subscriptions.push(disarmCommand);
 
     vscode.debug.onDidStartDebugSession(session => {
-        debug_sessions[Number(session.configuration.processId)] = session;
+        console.log(session)
     }, this, disposables);
     
     vscode.debug.onDidTerminateDebugSession(session => {
-        delete debug_sessions[Number(session.configuration.processId)];
+        var id;
+        if (session.configuration.type == "cppdbg")
+            id = [session.configuration.program, Number(session.configuration.processId)];
+        else if (session.configuration.type == "python")
+            id = [session.configuration.connect.host, session.configuration.connect.port];
+        else
+            return;
+        debug_sessions.delete(id);
     }, this, disposables);
 }
 
@@ -35,7 +47,7 @@ module.exports = {
 }
 
 let server = null;
-let debug_sessions = {};
+let debug_sessions = new Set;
 
 function arm() {
     if (!server) {
@@ -55,9 +67,8 @@ function arm() {
                         if (r != null) {
                             if (r != "" || !isFinite(pid)) {
                                 vscode.window.showErrorMessage(`Invalid request: ${c.input_buffer}`);
-                                c.write("\x01");
+                                c.write(RESP_INVALID_REQUEST, () => { c.end(); });
                                 c.input_buffer = null;
-                                c.end();
                             } else {
                                 console.log(`Request:${c.input_buffer}`);
                                 c.input_buffer = null;
@@ -70,7 +81,7 @@ function arm() {
                 c.on("end", () => {
                     if (c.input_buffer) {
                         vscode.window.showErrorMessage(`Incomplete request: ${c.input_buffer}`);
-                        c.write("\x02");
+                        c.write(RESP_INCOMPLETE_REQUEST, () => { c.end(); });
                         c.input_buffer = null;
                     }
                 });
@@ -79,8 +90,6 @@ function arm() {
                 c.setTimeout(timeout);
                 c.on('timeout', () => {
                     vscode.window.showWarningMessage(`Request timeout!`);
-                    c.write("\x03");
-                    c.end();
                 });
             }
         );
@@ -123,37 +132,46 @@ function disarm() {
     }
 }
 
-function handleRequest(c, conf_name, program, pid) {
-    if (debug_sessions[pid]) {
-        c.write("\x00");
-        c.end();
+function handleRequest(c, conf_name, param1, param2) {
+    let id = [param1, param2];
+    if (debug_sessions.has(id)) {
+        c.write(new Uint8Array([0]), () => { c.end(); });
         return;
     }
 
-    vscode.window.showInformationMessage(`Attaching process ${pid}...`);    
+    vscode.window.showInformationMessage(`Attaching process ${id}...`);    
     const configurations = vscode.workspace.getConfiguration("debug-trigger").configurations;
     
-    var config = configurations[conf_name] || conf_name;
-    if (typeof(config) == "object") {
-        config = {...config};
-        if (program)
-            config.program = program;
-        config.processId = pid;
+    var config = configurations[conf_name];
+    if (typeof(config) != "object")
+    {
+        vscode.window.showWarningMessage(`Debug configuration with name "${conf_name}" not found!`);
+        return;
+    }
+    
+    config = {...config};
+    if (conf_name.startsWith("cppdbg")) {
+        if (param1)
+            config.program = param1;
+        config.processId = param2;
+    }
+    else if (conf_name.startsWith("python")) {
+        config.connect = {...config.connect};
+        config.connect.host = param1;
+        config.connect.port = param2;
+    } else {
+        vscode.window.showWarningMessage(`Unsupported configuration type "${conf_name}"!`);
+        return;
     }
 
     vscode.debug.startDebugging(undefined, config).then(ok => {   
         if (ok) {
-            vscode.window.showInformationMessage(`Debugging of process ${pid} started!`);
-            debug_sessions[pid] = pid;
-            c.write("\x00"); // Success!
+            vscode.window.showInformationMessage(`Debugging of process ${id} started!`);
+            debug_sessions.add(id);
+            c.write(RESP_OK, () => { c.end(); }); // Success!
         } else {
-            vscode.window.showWarningMessage(`Failed to attach process ${pid}!`);
-            c.write("\x04");
+            vscode.window.showWarningMessage(`Failed to attach process ${id}!`);
+            c.write(RESP_ATTACH_FAILURE, () => { c.end(); });
         }
-        c.end(); 
-    }).catch(e => {
-        vscode.window.showWarningMessage(`Error: ${e}`);
-        c.write("\x05");
-        c.end()
     });
 }
