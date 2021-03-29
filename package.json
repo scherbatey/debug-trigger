@@ -23,12 +23,6 @@
           "default": "0.0.0.0 8989",
           "scope": "window"
         },
-        "debug-trigger.timeout": {
-          "definition": "Timeout in ms",
-          "type": "number",
-          "default": 1000,
-          "scope": "window"
-        },
         "debug-trigger.configurations": {
           "description": "Application -> debug configuration mapping. The configuration can be specified explicitly or as a string referring to the configuration from launch.json",
           "type": "object",
@@ -86,7 +80,6 @@
     "eslint": "^7.19.0",
     "glob": "^7.1.6",
     "mocha": "^8.2.1",
-    "typescript": "^4.1.3",
     "vscode-test": "^1.5.0"
   }
 }

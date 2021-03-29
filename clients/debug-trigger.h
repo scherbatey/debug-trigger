@@ -4,9 +4,14 @@
 #include <arpa/inet.h> 
 
 #ifdef __cplusplus
-static int start_debug(char const * id, char const * program_path=nullptr, char const * host="127.0.0.1", int port=8989)
+static int start_debug(
+    char const * id = "cppdbg",
+    char const * program_path = nullptr,
+    char const * host = "127.0.0.1",
+    int port = 8989,
+    int timeout = 10000)
 #else
-static int start_debug(char const * id, char const * program_path, char const * host, int port)
+static int start_debug(char const * id, char const * program_path, char const * host, int port, int timeout)
 #endif
 {
     int sock = 0, valread; 
@@ -29,7 +34,7 @@ static int start_debug(char const * id, char const * program_path, char const * 
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) 
     {            
         close(sock);
-        return -2;
+        return -1;
     }
     
     const int PATH_MAX = 2048;
@@ -40,14 +45,17 @@ static int start_debug(char const * id, char const * program_path, char const * 
         int path_len = readlink("/proc/self/exe", path, PATH_MAX);
         if (!path_len || path_len >= PATH_MAX) {
             close(sock);
-            return 1;
+            return -2;
         }
         path[path_len] = 0;
-    #elif __macos
+    #elif __APPLE__
         if(_NSGetExecutablePath(path, &PATH_MAX)) {
             return 1;
             close(sock);
         }
+    #elif _WIN32
+        //TODO: complete
+        //GetModuleFileNameA
     #endif
         program_path = path;
     }
