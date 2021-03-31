@@ -3,6 +3,7 @@
   "displayName": "Debug Trigger",
   "description": "Trigger VS Code debugger automatically from app code",
   "version": "0.0.1",
+  "publisher": "alex-scherbatey",
   "engines": {
     "vscode": "^1.54.0"
   },
