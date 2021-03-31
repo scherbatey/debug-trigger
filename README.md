@@ -21,7 +21,7 @@ Client libraries can be found in `clents` folder.
 
 This extension contributes the following settings:
 
-* `debug-trigger.configurations`: dictionary of debug configurations mapping `id` -> `configuration`. The `id` is passed in request by `start_debug` function and ca be customized.
+* `debug-trigger.configurations`: dictionary of debug configurations mapping `id` -> `configuration`. The `id` is passed in request by `start_debug` function and can be customized.
 * `debug-trigger.listento`: set TCP socket ("\<host\> \<port\>") / Unix socket / Windows pipe name to listen
 
 ## Release Notes
