@@ -32,7 +32,7 @@ def start_debug(
                     print("debugpy port number is out of range")
                     return -2
                 debugpy.listen(debugpy_port)
-                print(f"debugpy is listening port {port}", file=sys.stderr)
+                print(f"debugpy is listening port {debugpy_port}", file=sys.stderr)
                 break
             except RuntimeError:
                 if debugpy_port_autoincrement:
