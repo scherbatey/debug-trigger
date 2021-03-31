@@ -1,4 +1,4 @@
-# debug-trigger README
+# Debug Trigger
 
 Debug Trigger is a Visual Studio Code extension that starts debug session in responce to request from user code.
 ## Features
