@@ -4,6 +4,7 @@
   "description": "Trigger VS Code debugger automatically from app code",
   "version": "0.0.1",
   "publisher": "alex-scherbatey",
+  "repository": "https://github.com/scherbatey/debug-trigger",
   "engines": {
     "vscode": "^1.54.0"
   },
@@ -36,11 +37,11 @@
               "stopAtEntry": true,
               "MIMode": "gdb",
               "setupCommands": [
-                  {
-                      "description": "Enable pretty-printing for gdb",
-                      "text": "-enable-pretty-printing",
-                      "ignoreFailures": true
-                  }
+                {
+                  "description": "Enable pretty-printing for gdb",
+                  "text": "-enable-pretty-printing",
+                  "ignoreFailures": true
+                }
               ]
             },
             "python": {
@@ -55,7 +56,6 @@
           }
         }
       }
-
     },
     "commands": [
       {
@@ -82,5 +82,8 @@
     "glob": "^7.1.6",
     "mocha": "^8.2.1",
     "vscode-test": "^1.5.0"
+  },
+  "dependencies": {
+    "vsce": "^1.87.1"
   }
 }
