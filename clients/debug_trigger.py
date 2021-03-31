@@ -13,7 +13,7 @@ def start_debug(
     timeout=10,
     debugpy_host="127.0.0.1",
     debugpy_port=4567,
-    debugpy_port_autoincrement=True
+    debugpy_port_autoincrement=True,
 ):
     global _this_process_attached
     if _this_process_attached:
@@ -28,7 +28,7 @@ def start_debug(
     try:
         while True:
             try:
-                if (0 > debugpy_port or debugpy_port > 0xFFFF):
+                if 0 > debugpy_port or debugpy_port > 0xFFFF:
                     print("debugpy port number is out of range")
                     return -2
                 debugpy.listen(debugpy_port)
